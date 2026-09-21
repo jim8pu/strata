@@ -254,7 +254,11 @@ pub(super) fn bind_sidebar_text_size(paned: &gtk::Paned) {
     PreferenceManager::shared().bind_interface_scale(paned, |widget, scale| {
         let paned = widget.downcast_ref::<gtk::Paned>().expect("sidebar split");
         if paned.position() > 0 {
-            paned.set_position(scaled_sidebar_width(paned, scale));
+            let mut target = scaled_sidebar_width(paned, scale);
+            if let Some(sidebar) = paned.start_child() {
+                target = target.max(sidebar_minimum_width(&sidebar));
+            }
+            paned.set_position(target);
         }
     });
 }
@@ -269,6 +273,15 @@ fn scaled_sidebar_width(paned: &gtk::Paned, scale: f64) -> i32 {
     preferred.min(available).max(MIN_SIDEBAR_WIDTH)
 }
 
+/// The sidebar content (icons, rows, scroller) has a fixed minimum width that
+/// text scaling does not shrink. Positioning the divider below it desyncs the
+/// divider from the allocated sidebar and renders it clipped until an
+/// unrelated relayout lets GTK clamp the position back up.
+fn sidebar_minimum_width(sidebar: &gtk::Widget) -> i32 {
+    let (minimum, _, _, _) = sidebar.measure(gtk::Orientation::Horizontal, -1);
+    minimum
+}
+
 fn animate_sidebar(
     paned: &gtk::Paned,
     sidebar: &gtk::Widget,
@@ -280,15 +293,16 @@ fn animate_sidebar(
     generation.set(animation_id);
     animating.set(true);
     paned.set_shrink_start_child(true);
+    if expanded {
+        sidebar.set_visible(true);
+    }
     let target = if expanded {
         scaled_sidebar_width(paned, PreferenceManager::shared().interface_scale())
+            .max(sidebar_minimum_width(sidebar))
     } else {
         0
     };
     let start = paned.position();
-    if expanded {
-        sidebar.set_visible(true);
-    }
 
     if !animations_enabled() || start == target {
         paned.set_position(target);
