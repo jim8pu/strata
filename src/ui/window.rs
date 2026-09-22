@@ -273,10 +273,7 @@ fn scaled_sidebar_width(paned: &gtk::Paned, scale: f64) -> i32 {
     preferred.min(available).max(MIN_SIDEBAR_WIDTH)
 }
 
-/// The sidebar content (icons, rows, scroller) has a fixed minimum width that
-/// text scaling does not shrink. Positioning the divider below it desyncs the
-/// divider from the allocated sidebar and renders it clipped until an
-/// unrelated relayout lets GTK clamp the position back up.
+// Below this minimum, GTK can allocate more width than the divider position allows.
 fn sidebar_minimum_width(sidebar: &gtk::Widget) -> i32 {
     let (minimum, _, _, _) = sidebar.measure(gtk::Orientation::Horizontal, -1);
     minimum
